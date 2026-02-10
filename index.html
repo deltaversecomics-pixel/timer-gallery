@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Tri-Timer Gallery</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-color: #ffffff;
+            --card-bg: #1c1c1e;
+            --green: #30d158;
+            --red: #ff453a;
+            --gray: #3a3a3c;
+            --dots: #555;
+            --active-dot: #fff;
+        }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden; /* No vertical scroll on body */
+        }
+
+        #app-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+            opacity: 1.0;
+            transition: opacity 0.1s ease;
+        }
+
+        /* --- Header & Settings --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 0 5px;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0;
+            color: #e5e5ea;
+        }
+
+        /* Toggle Switch */
+        .toggle-wrapper {
+            display: flex;
+            align-items: center;
+            font-size: 11px;
+            color: #8e8e93;
+            gap: 8px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 26px;
+        }
+        
+        .switch input { opacity: 0; width: 0; height: 0; }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--gray);
+            transition: .3s;
+            border-radius: 34px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider { background-color: var(--green); }
+        input:checked + .slider:before { transform: translateX(18px); }
+
+        /* Tools Bar */
+        .tools-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 10px;
+            padding: 0 5px;
+        }
+
+        .opacity-control {
+            flex: 2;
+            display: flex;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 0 15px;
+            height: 44px;
+            border-radius: 12px;
+        }
+        
+        .opacity-control input[type=range] {
+            width: 100%;
+            accent-color: var(--text-color);
+        }
+
+        .pip-btn {
+            flex: 1;
+            background: var(--gray);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .pip-btn:active { opacity: 0.7; }
+
+        /* --- GALLERY CAROUSEL --- */
+        .carousel-container {
+            flex: 1;
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch; /* Smooth iOS scrolling */
+            scroll-behavior: smooth;
+            align-items: center; /* Center vertically */
+            gap: 20px;
+            padding-bottom: 10px;
+        }
+        
+        /* Hide scrollbar */
+        .carousel-container::-webkit-scrollbar { display: none; }
+
+        .timer-card {
+            flex: 0 0 100%; /* Take full width */
+            scroll-snap-align: center;
+            background-color: var(--card-bg);
+            border-radius: 24px;
+            height: 80%; /* Takes up most of the middle screen */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+        }
+
+        .timer-label {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 14px;
+            color: #8e8e93;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .time-display {
+            font-variant-numeric: tabular-nums;
+            font-size: 64px; /* Bigger font since we have space now */
+            font-weight: 200;
+            text-align: center;
+            margin-bottom: 40px;
+            letter-spacing: -1px;
+        }
+
+        /* Big Play Button */
+        .controls {
+            display: flex;
+            gap: 30px;
+        }
+
+        button.circle-btn {
+            border: none;
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            color: white;
+            transition: transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button.circle-btn:active { transform: scale(0.92); }
+
+        .btn-start { background-color: rgba(48, 209, 88, 0.2); color: var(--green); border: 2px solid var(--green); }
+        .btn-stop { background-color: rgba(255, 69, 58, 0.2); color: var(--red); border: 2px solid var(--red); }
+        .btn-reset { background-color: transparent; color: #8e8e93; border: 2px solid #8e8e93; width: 60px; height: 60px; font-size: 12px; }
+
+        /* Pagination Dots */
+        .dots-container {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+            padding-bottom: 20px;
+        }
+        
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--dots);
+            transition: background-color 0.2s;
+        }
+        
+        .dot.active { background-color: var(--active-dot); }
+
+        /* Hidden Elements for PiP */
+        #pip-canvas { display: none; }
+        #pip-video { display: none; }
+
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <div class="header">
+            <h1>Tri-Timer</h1>
+            <div class="toggle-wrapper">
+                <span id="screen-status">Auto-Lock</span>
+                <label class="switch">
+                    <input type="checkbox" id="alwaysOnToggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="tools-bar">
+            <div class="opacity-control">
+                <span style="margin-right:8px; font-size:10px; color:#8e8e93;">OPACITY</span>
+                <input type="range" min="0.0" max="1.0" step="0.05" value="1.0" id="opacitySlider">
+            </div>
+            <button class="pip-btn" onclick="startPiP()">
+                Pop Out ❐
+            </button>
+        </div>
+
+        <div class="carousel-container" id="carousel">
+            
+            <div class="timer-card">
+                <div class="timer-label">Task A</div>
+                <div class="time-display" id="display-0">000:00:00</div>
+                <div class="controls">
+                    <button class="circle-btn btn-reset" onclick="resetTimer(0)">Reset</button>
+                    <button class="circle-btn btn-start" id="btn-0" onclick="toggleTimer(0)">Start</button>
+                </div>
+            </div>
+
+            <div class="timer-card">
+                <div class="timer-label">Task B</div>
+                <div class="time-display" id="display-1">000:00:00</div>
+                <div class="controls">
+                    <button class="circle-btn btn-reset" onclick="resetTimer(1)">Reset</button>
+                    <button class="circle-btn btn-start" id="btn-1" onclick="toggleTimer(1)">Start</button>
+                </div>
+            </div>
+
+            <div class="timer-card">
+                <div class="timer-label">Task C</div>
+                <div class="time-display" id="display-2">000:00:00</div>
+                <div class="controls">
+                    <button class="circle-btn btn-reset" onclick="resetTimer(2)">Reset</button>
+                    <button class="circle-btn btn-start" id="btn-2" onclick="toggleTimer(2)">Start</button>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="dots-container">
+            <div class="dot active" id="dot-0"></div>
+            <div class="dot" id="dot-1"></div>
+            <div class="dot" id="dot-2"></div>
+        </div>
+    </div>
+
+    <canvas id="pip-canvas" width="600" height="300"></canvas>
+    <video id="pip-video" muted playsinline></video>
+
+    <script>
+        // --- LOGIC ---
+        const timers = [
+            { id: 0, startTime: null, accumulated: 0, isRunning: false, interval: null },
+            { id: 1, startTime: null, accumulated: 0, isRunning: false, interval: null },
+            { id: 2, startTime: null, accumulated: 0, isRunning: false, interval: null }
+        ];
+
+        // Persistence
+        function loadState() {
+            const saved = localStorage.getItem('triTimerState_v3');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                parsed.forEach((t, i) => {
+                    timers[i].startTime = t.startTime;
+                    timers[i].accumulated = t.accumulated;
+                    timers[i].isRunning = t.isRunning;
+                    if (timers[i].isRunning) {
+                        startInterval(i); 
+                        updateBtnUI(i, true);
+                    }
+                    updateDisplay(i);
+                });
+            }
+        }
+
+        function saveState() {
+            const stateToSave = timers.map(t => ({
+                startTime: t.startTime,
+                accumulated: t.accumulated,
+                isRunning: t.isRunning
+            }));
+            localStorage.setItem('triTimerState_v3', JSON.stringify(stateToSave));
+        }
+
+        // Timer Functions
+        function toggleTimer(index) {
+            const t = timers[index];
+            if (t.isRunning) {
+                // Pause
+                clearInterval(t.interval);
+                t.accumulated += Date.now() - t.startTime;
+                t.startTime = null;
+                t.isRunning = false;
+                updateBtnUI(index, false);
+            } else {
+                // Start
+                t.startTime = Date.now();
+                t.isRunning = true;
+                startInterval(index);
+                updateBtnUI(index, true);
+            }
+            saveState();
+        }
+
+        function resetTimer(index) {
+            const t = timers[index];
+            clearInterval(t.interval);
+            t.startTime = null;
+            t.accumulated = 0;
+            t.isRunning = false;
+            updateBtnUI(index, false);
+            updateDisplay(index);
+            saveState();
+        }
+
+        function startInterval(index) {
+            timers[index].interval = setInterval(() => {
+                updateDisplay(index);
+                if (isPipActive) drawToCanvas();
+            }, 100);
+        }
+
+        function getFormattedTime(index) {
+            const t = timers[index];
+            let total = t.accumulated;
+            if (t.isRunning) total += Date.now() - t.startTime;
+            
+            let seconds = Math.floor(total / 1000);
+            let hours = Math.floor(seconds / 3600);
+            seconds %= 3600;
+            let minutes = Math.floor(seconds / 60);
+            seconds %= 60;
+
+            const hStr = String(hours).padStart(3, '0');
+            const mStr = String(minutes).padStart(2, '0');
+            const sStr = String(seconds).padStart(2, '0');
+            return `${hStr}:${mStr}:${sStr}`;
+        }
+
+        function updateDisplay(index) {
+            document.getElementById(`display-${index}`).innerText = getFormattedTime(index);
+        }
+
+        function updateBtnUI(index, isRunning) {
+            const btn = document.getElementById(`btn-${index}`);
+            if (isRunning) {
+                btn.innerText = "Pause";
+                btn.className = "circle-btn btn-stop";
+            } else {
+                btn.innerText = "Start";
+                btn.className = "circle-btn btn-start";
+            }
+        }
+
+        // --- SCROLL DOTS LOGIC ---
+        const carousel = document.getElementById('carousel');
+        carousel.addEventListener('scroll', () => {
+            const index = Math.round(carousel.scrollLeft / carousel.offsetWidth);
+            document.querySelectorAll('.dot').forEach((dot, i) => {
+                dot.classList.toggle('active', i === index);
+            });
+        });
+
+        // --- UTILS (Opacity, PiP, WakeLock) ---
+        // Opacity
+        document.getElementById('opacitySlider').addEventListener('input', (e) => {
+            document.getElementById('app-container').style.opacity = e.target.value;
+        });
+
+        // Wake Lock
+        let wakeLock = null;
+        document.getElementById('alwaysOnToggle').addEventListener('change', async (e) => {
+            const status = document.getElementById('screen-status');
+            if (e.target.checked) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    status.innerText = "Awake";
+                } catch(err) { status.innerText = "Error"; }
+            } else if (wakeLock) {
+                wakeLock.release();
+                wakeLock = null;
+                status.innerText = "Auto-Lock";
+            }
+        });
+
+        // PiP Logic (Draws ALL 3 to canvas for dashboard view)
+        let isPipActive = false;
+        const canvas = document.getElementById('pip-canvas');
+        const ctx = canvas.getContext('2d');
+        const video = document.getElementById('pip-video');
+
+        function drawToCanvas() {
+            ctx.fillStyle = '#1c1c1e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            
+            // Draw all 3 stats compacted
+            const labels = ["A", "B", "C"];
+            for (let i = 0; i < 3; i++) {
+                const y = 50 + (i * 100);
+                
+                // Dot
+                ctx.fillStyle = timers[i].isRunning ? '#30d158' : '#3a3a3c';
+                ctx.beginPath();
+                ctx.arc(30, y, 10, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Text
+                ctx.font = 'bold 60px monospace';
+                ctx.fillStyle = timers[i].isRunning ? '#ffffff' : '#888888';
+                ctx.fillText(getFormattedTime(i), 60, y);
+            }
+        }
+
+        async function startPiP() {
+            drawToCanvas();
+            const stream = canvas.captureStream(30);
+            video.srcObject = stream;
+            await video.play();
+            if (video.webkitSetPresentationMode) {
+                video.webkitSetPresentationMode('picture-in-picture');
+            } else if (video.requestPictureInPicture) {
+                await video.requestPictureInPicture();
+            }
+            isPipActive = true;
+        }
+
+        loadState();
+    </script>
+</body>
+</html>
